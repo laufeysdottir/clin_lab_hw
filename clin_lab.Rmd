@@ -1,0 +1,64 @@
+---
+title: "clin_lab"
+author: "Alisa Seleznyova"
+date: "2022-11-02"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(tidyverse)
+library(ggplot2)
+library(pROC)
+library(gtsummary)
+```
+
+# Загрузка и обработка данных.
+<br>
+```{r}
+df <- read.csv("diabetes.csv")
+summary(df)
+```
+<br>
+Заменим нули в переменных BloodPressure, Insulin, BMI, Glucose, SkinThickness на NA. Кроме того, переведем глюкозу в ммоль/л.
+<br>
+```{r}
+df <- df %>%
+  mutate(across(c(BloodPressure, Insulin, BMI, Glucose,  SkinThickness), ~ifelse(.x == 0, NA, .x)),
+         Glucose_mml = round(Glucose / 18, 1),
+         Glucose_mml = as.numeric(Glucose_mml))
+```
+<br>
+
+# У какого количества пациентов из датасета присутствует нарушенная толерантность к глюкозе (НТГ)? Сколько в датасете пациентов, у которых нет НТГ?
+<br>
+```{r}
+df <- df %>%
+ mutate(prediabetes = Glucose_mml >= 7.8)
+
+table(df$prediabetes)
+```
+<br>
+НТГ можно наблюдать у 197 пациентов.
+У 566 пациентов он отсутствует.
+<br>
+
+# Как выглядит ROC-кривая для предсказания сахарного диабета по переменной, характеризующей уровень гликемии? Постройте график.
+```{r warning= FALSE}
+roc_1 <- roc(Outcome ~ Glucose_mml, data = df, ci = TRUE, quiet = TRUE)
+ggroc(roc_1, color = "#1B9E77", size = 2) +
+  labs(x = "Специфичность", y = "Чувствительность", title = "ROC-кривая для НТГ по гликемии")+
+  theme_light()
+```
+<br>
+
+# Чему равна площадь под ROC-кривой, которую вы построили в вопросе 2?
+```{r}
+roc_1$auc
+```
+# Чему равен 95% двусторонний ДИ для площади под ROC-кривой, которую вы построили в вопросе 2?
+```{r}
+roc_1$ci
+```
+
