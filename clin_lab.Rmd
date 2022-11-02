@@ -18,7 +18,7 @@ library(gtsummary)
 <br>
 ```{r}
 df <- read.csv("diabetes.csv")
-summary(df)
+glimpse(df)
 ```
 <br>
 Заменим нули в переменных BloodPressure, Insulin, BMI, Glucose, SkinThickness на NA. Кроме того, переведем глюкозу в ммоль/л.
@@ -47,7 +47,7 @@ table(df$prediabetes)
 # Как выглядит ROC-кривая для предсказания сахарного диабета по переменной, характеризующей уровень гликемии? Постройте график.
 ```{r warning= FALSE}
 roc_1 <- roc(Outcome ~ Glucose_mml, data = df, ci = TRUE, quiet = TRUE)
-ggroc(roc_1, color = "#1B9E77", size = 2) +
+ggroc(roc_1, color = "#1B9E77", size = 1.2) +
   labs(x = "Специфичность", y = "Чувствительность", title = "ROC-кривая для НТГ по гликемии")+
   theme_light()
 ```
@@ -62,3 +62,36 @@ roc_1$auc
 roc_1$ci
 ```
 
+# Постройте ROC-кривую и определите, какое пороговое значение является оптимальным для предсказания сахарного диабета по уровню инсулина? Какой чувствительностью и специфичностью обладает данный порог?
+```{r}
+roc_best <- roc_1 %>%
+  coords(x = "best", best.method = "closest.topleft")
+roc_best
+
+```
+
+```{r}
+df1 <- data.frame(x = c(1, roc_best$specificity), y = roc_best$sensitivity)
+df2 <- data.frame(x = roc_best$specificity, y = c(0, roc_best$sensitivity))
+ggroc(roc_1, color = "#7570B3", size = 1.2) +
+  geom_line(aes(x = x, y = y),data = df1, size = 0.5, color = "#E6AB02") +
+  geom_line(aes(x = x, y = y),data = df2, size = 0.5, color = "#E6AB02") +
+  geom_point(aes(x = specificity, y = sensitivity), roc_best, color = "red", size = 2) +
+  geom_text(aes(x = specificity, y = sensitivity, label = "Пороговое значение = 6,85"), roc_best) +
+  labs(x = "Специфичность", y = "Чувствительность", title = "ROC-кривая для  НТГ по уровню инсулина") + 
+  theme_light()
+```
+<br>
+
+# Какая из количественных переменных в датасете обладает наибольшей площадью под ROC-кривой? Как вы можете интерпретировать это знание? Какая количественная переменная имеет наименьшую площадь?
+Из пункта про упростить жизнь!
+
+```{r}
+df %>% 
+    select(-Glucose, -prediabetes) %>% 
+    pivot_longer(cols = -Outcome) %>% 
+    group_by(name) %>% 
+    summarise(AUC = roc(Outcome, value, ci = T,  quiet = TRUE)$ci[2] %>% round(3))
+```
+Наибольшая площадь под кривой в датасете у глюкозы, что логично, если учесть, что критерий НТГ – это уровень повышение гликемии ≥ 7.8 ммоль/л на 120 минуте теста на толерантность к глюкозе.
+Наименьший - у индекса, отражающего вероятность наличия диабета на основании наследственного анамнеза. Вероятно, это может свидетельствовать в пользу того, что не всегда диабет развивается при наличии в наследственном анамнезе, он генетически гетерогенен и может вызываться разными группами генов, поэтому сложен для прогнозирования его наследования.

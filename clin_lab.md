@@ -9,30 +9,20 @@ Alisa Seleznyova
 
 ``` r
 df <- read.csv("diabetes.csv")
-summary(df)
+glimpse(df)
 ```
 
-    ##   Pregnancies        Glucose      BloodPressure    SkinThickness  
-    ##  Min.   : 0.000   Min.   :  0.0   Min.   :  0.00   Min.   : 0.00  
-    ##  1st Qu.: 1.000   1st Qu.: 99.0   1st Qu.: 62.00   1st Qu.: 0.00  
-    ##  Median : 3.000   Median :117.0   Median : 72.00   Median :23.00  
-    ##  Mean   : 3.845   Mean   :120.9   Mean   : 69.11   Mean   :20.54  
-    ##  3rd Qu.: 6.000   3rd Qu.:140.2   3rd Qu.: 80.00   3rd Qu.:32.00  
-    ##  Max.   :17.000   Max.   :199.0   Max.   :122.00   Max.   :99.00  
-    ##     Insulin           BMI        DiabetesPedigreeFunction      Age       
-    ##  Min.   :  0.0   Min.   : 0.00   Min.   :0.0780           Min.   :21.00  
-    ##  1st Qu.:  0.0   1st Qu.:27.30   1st Qu.:0.2437           1st Qu.:24.00  
-    ##  Median : 30.5   Median :32.00   Median :0.3725           Median :29.00  
-    ##  Mean   : 79.8   Mean   :31.99   Mean   :0.4719           Mean   :33.24  
-    ##  3rd Qu.:127.2   3rd Qu.:36.60   3rd Qu.:0.6262           3rd Qu.:41.00  
-    ##  Max.   :846.0   Max.   :67.10   Max.   :2.4200           Max.   :81.00  
-    ##     Outcome     
-    ##  Min.   :0.000  
-    ##  1st Qu.:0.000  
-    ##  Median :0.000  
-    ##  Mean   :0.349  
-    ##  3rd Qu.:1.000  
-    ##  Max.   :1.000
+    ## Rows: 768
+    ## Columns: 9
+    ## $ Pregnancies              <int> 6, 1, 8, 1, 0, 5, 3, 10, 2, 8, 4, 10, 10, 1, ~
+    ## $ Glucose                  <int> 148, 85, 183, 89, 137, 116, 78, 115, 197, 125~
+    ## $ BloodPressure            <int> 72, 66, 64, 66, 40, 74, 50, 0, 70, 96, 92, 74~
+    ## $ SkinThickness            <int> 35, 29, 0, 23, 35, 0, 32, 0, 45, 0, 0, 0, 0, ~
+    ## $ Insulin                  <int> 0, 0, 0, 94, 168, 0, 88, 0, 543, 0, 0, 0, 0, ~
+    ## $ BMI                      <dbl> 33.6, 26.6, 23.3, 28.1, 43.1, 25.6, 31.0, 35.~
+    ## $ DiabetesPedigreeFunction <dbl> 0.627, 0.351, 0.672, 0.167, 2.288, 0.201, 0.2~
+    ## $ Age                      <int> 50, 31, 32, 21, 33, 30, 26, 29, 53, 54, 30, 3~
+    ## $ Outcome                  <int> 1, 0, 1, 0, 1, 0, 1, 0, 1, 1, 0, 1, 0, 1, 1, ~
 
 <br> Заменим нули в переменных BloodPressure, Insulin, BMI, Glucose,
 SkinThickness на NA. Кроме того, переведем глюкозу в ммоль/л. <br>
@@ -68,7 +58,7 @@ table(df$prediabetes)
 
 ``` r
 roc_1 <- roc(Outcome ~ Glucose_mml, data = df, ci = TRUE, quiet = TRUE)
-ggroc(roc_1, color = "#1B9E77", size = 2) +
+ggroc(roc_1, color = "#1B9E77", size = 1.2) +
   labs(x = "Специфичность", y = "Чувствительность", title = "ROC-кривая для НТГ по гликемии")+
   theme_light()
 ```
@@ -90,3 +80,61 @@ roc_1$ci
 ```
 
     ## 95% CI: 0.7603-0.826 (DeLong)
+
+# Постройте ROC-кривую и определите, какое пороговое значение является оптимальным для предсказания сахарного диабета по уровню инсулина? Какой чувствительностью и специфичностью обладает данный порог?
+
+``` r
+roc_best <- roc_1 %>%
+  coords(x = "best", best.method = "closest.topleft")
+roc_best
+```
+
+    ##   threshold specificity sensitivity
+    ## 1      6.85   0.7303823   0.7067669
+
+``` r
+df1 <- data.frame(x = c(1, roc_best$specificity), y = roc_best$sensitivity)
+df2 <- data.frame(x = roc_best$specificity, y = c(0, roc_best$sensitivity))
+ggroc(roc_1, color = "#7570B3", size = 1.2) +
+  geom_line(aes(x = x, y = y),data = df1, size = 0.5, color = "#E6AB02") +
+  geom_line(aes(x = x, y = y),data = df2, size = 0.5, color = "#E6AB02") +
+  geom_point(aes(x = specificity, y = sensitivity), roc_best, color = "red", size = 2) +
+  geom_text(aes(x = specificity, y = sensitivity, label = "Пороговое значение = 6,85"), roc_best) +
+  labs(x = "Специфичность", y = "Чувствительность", title = "ROC-кривая для  НТГ по уровню инсулина") + 
+  theme_light()
+```
+
+![](clin_lab_files/figure-gfm/unnamed-chunk-8-1.png)<!-- --> <br>
+
+# Какая из количественных переменных в датасете обладает наибольшей площадью под ROC-кривой? Как вы можете интерпретировать это знание? Какая количественная переменная имеет наименьшую площадь?
+
+Из пункта про упростить жизнь!
+
+``` r
+df %>% 
+    select(-Glucose, -prediabetes) %>% 
+    pivot_longer(cols = -Outcome) %>% 
+    group_by(name) %>% 
+    summarise(AUC = roc(Outcome, value, ci = T,  quiet = TRUE)$ci[2] %>% round(3))
+```
+
+    ## # A tibble: 8 x 2
+    ##   name                       AUC
+    ##   <chr>                    <dbl>
+    ## 1 Age                      0.687
+    ## 2 BloodPressure            0.608
+    ## 3 BMI                      0.687
+    ## 4 DiabetesPedigreeFunction 0.606
+    ## 5 Glucose_mml              0.793
+    ## 6 Insulin                  0.732
+    ## 7 Pregnancies              0.62 
+    ## 8 SkinThickness            0.663
+
+Наибольшая площадь под кривой в датасете у глюкозы, что логично, если
+учесть, что критерий НТГ – это уровень повышение гликемии ≥ 7.8 ммоль/л
+на 120 минуте теста на толерантность к глюкозе. Наименьший - у индекса,
+отражающего вероятность наличия диабета на основании наследственного
+анамнеза. Вероятно, это может свидетельствовать в пользу того, что не
+всегда диабет развивается при наличии в наследственном анамнезе, он
+генетически гетерогенен и может вызываться разными группами генов,
+поэтому сложен для прогнозирования его наследования.
