@@ -7,7 +7,6 @@ output: github_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-library(dplyr)
 library(tidyverse)
 library(ggplot2)
 library(pROC)
@@ -64,20 +63,21 @@ roc_1$ci
 
 # Постройте ROC-кривую и определите, какое пороговое значение является оптимальным для предсказания сахарного диабета по уровню инсулина? Какой чувствительностью и специфичностью обладает данный порог?
 ```{r}
-roc_best <- roc_1 %>%
+roc_ins <- roc(Outcome ~ Insulin, data = df, ci = TRUE, quiet = TRUE)
+roc_best_ins <- roc_ins %>%
   coords(x = "best", best.method = "closest.topleft")
-roc_best
+roc_best_ins
 
 ```
 
 ```{r}
-df1 <- data.frame(x = c(1, roc_best$specificity), y = roc_best$sensitivity)
-df2 <- data.frame(x = roc_best$specificity, y = c(0, roc_best$sensitivity))
-ggroc(roc_1, color = "#7570B3", size = 1.2) +
+df1 <- data.frame(x = c(1, roc_best_ins$specificity), y = roc_best_ins$sensitivity)
+df2 <- data.frame(x = roc_best_ins$specificity, y = c(0, roc_best_ins$sensitivity))
+ggroc(roc_ins, color = "#7570B3", size = 1.2) +
   geom_line(aes(x = x, y = y),data = df1, size = 0.5, color = "#E6AB02") +
   geom_line(aes(x = x, y = y),data = df2, size = 0.5, color = "#E6AB02") +
-  geom_point(aes(x = specificity, y = sensitivity), roc_best, color = "red", size = 2) +
-  geom_text(aes(x = specificity, y = sensitivity, label = "Пороговое значение = 6,85"), roc_best) +
+  geom_point(aes(x = specificity, y = sensitivity), roc_best_ins, color = "red", size = 2) +
+  geom_text(aes(x = specificity, y = sensitivity, label = "Пороговое значение = 14.5"), roc_best_ins) +
   labs(x = "Специфичность", y = "Чувствительность", title = "ROC-кривая для  НТГ по уровню инсулина") + 
   theme_light()
 ```
